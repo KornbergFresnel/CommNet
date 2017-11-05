@@ -1,2 +1,2 @@
 # CommNet
-an implement of CommNet
+an implementation of CommNet
