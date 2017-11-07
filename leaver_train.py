@@ -25,9 +25,6 @@ def train(episode):
         actor.train(ids, baseline, i)
         critic.train(ids, reward, i)
 
-        if (i + 1) % 10 == 0:
-            print("predict reward: ", actor.pred(id_1))
-
 
 if __name__ == "__main__":
     train(500)
