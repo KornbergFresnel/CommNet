@@ -62,5 +62,5 @@ class BaseModel:
     def _get_loss(self):
         pass
 
-    def train(self, ids_one_hot, label, itr):
+    def train(self, ids_one_hot, label, **kwargs):
         pass

@@ -4,7 +4,7 @@ from base import BaseModel
 
 
 class CommNet(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.03, batch_size=64,
+    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.002, batch_size=64,
                  episodes=500):
 
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
@@ -61,9 +61,13 @@ class CommNet(BaseModel):
         # advantage: n, 1, 1
         meta = tf.reshape(self.reward - self.base_line, shape=(-1, 1, 1))
         # compute cross-entropy, add bias for computable
-        temp1 = -self.one_hot * tf.log(self.policy + self.bias)
-        temp2 = temp1 * tf.tile(meta, [1, 5, 5])
-        loss = tf.reduce_sum(temp2)
+        # temp1 = -1.0 * self.one_hot * tf.log(self.policy + self.bias)
+        # temp2 =
+        labels = tf.reshape(tf.cast(self.one_hot, dtype=tf.float32) * tf.tile(meta, [1, 5, 5]), shape=(-1, self.n_actions))
+        prob = tf.reshape((self.policy + self.bias), shape=(-1, self.n_actions))
+        entropy = tf.nn.softmax_cross_entropy_with_logits(logits=prob, labels=labels)
+        # log_value = tf.reshape(tf.log(self.policy + self.bias), shape=(-1, self.n_actions))
+        loss = tf.reduce_sum(entropy)
 
         return loss
 
@@ -77,17 +81,24 @@ class CommNet(BaseModel):
 
         return reward
 
-    def train(self, ids, base_line, itr):
+    def train(self, ids, base_line, **kwargs):
 
-        _, loss, reward, policy, action = self.sess.run([self.train_op, self.loss, self.reward, self.policy, self.actions], feed_dict={
+        _, loss, reward, policy = self.sess.run([self.train_op, self.loss, self.reward, self.policy], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
             self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len)),
             self.base_line: base_line
         })
 
+        log = kwargs["log"]
+        itr = kwargs["itr"]
+
+        sum_loss = np.sum(loss) / self.batch_size
+        sum_base = np.sum(reward) / self.batch_size
+
         if (itr + 1) % 10 == 0:
-            print("loss of actor: ", loss)
+            log.info("iteration:{0}\tloss:{1}\treward:{2}".format(itr, sum_loss, sum_base))
+            # print("iteration:{0}\tloss:{1}\treward:{2}".format(itr, sum_loss, sum_base))
 
     def pred(self, ids):
         return self.sess.run(self.reward, feed_dict={
@@ -98,7 +109,7 @@ class CommNet(BaseModel):
 
 
 class BaseLine(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.03, batch_size=64,
+    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.002, batch_size=64,
                  episodes=500):
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
@@ -148,17 +159,26 @@ class BaseLine(BaseModel):
             self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len))
         })
 
-    def train(self, ids, reward, itr):
+    def train(self, ids, reward, **kwargs):
 
-        _, loss = self.sess.run([self.train_op, self.loss], feed_dict={
+        _, loss, base = self.sess.run([self.train_op, self.loss, self.baseline], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
             self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len)),
             self.reward: reward
         })
 
-        if (itr + 1) % 100 == 0:
-            print("loss of critic: ", loss)
+        log = kwargs["log"]
+        itr = kwargs["itr"]
+
+        sum_loss = np.sum(loss) / self.batch_size
+        sum_base = np.sum(base) / self.batch_size
+
+        if (itr + 1) % 10 == 0:
+            log.info("iteration:{0}\tloss:{1}\tbase:{2}".format(itr, sum_loss, sum_base))
+            # print("iteration:{0}\tloss:{1}\tbase:{2}".format(itr, sum_loss, sum_base))
+
+
 
 
 
