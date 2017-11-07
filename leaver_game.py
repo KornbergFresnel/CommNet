@@ -6,6 +6,7 @@ from base import BaseModel
 class CommNet(BaseModel):
     def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.03, batch_size=64,
                  episodes=500):
+
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
         self.base_line = tf.placeholder(tf.float32, shape=(None, 1))
@@ -15,7 +16,7 @@ class CommNet(BaseModel):
         with tf.variable_scope("CommNet"):
             self.eval_name = tf.get_variable_scope().name
             self.look_up = tf.get_variable("look_up_table", shape=(self.num_agents, self.vector_len),
-                                      initializer=tf.random_normal_initializer)
+                                           initializer=tf.random_normal_initializer)
             self.dense_weight = tf.get_variable("dense_w", shape=(self.vector_len, self.n_actions),
                                                 initializer=tf.random_uniform_initializer)
             self.policy = self._create_network()
@@ -23,8 +24,8 @@ class CommNet(BaseModel):
             self.reward = self._get_reward()
             self.loss = self._get_loss()
             self.train_op = tf.train.RMSPropOptimizer(self.alpha).minimize(self.loss)
-            self.sess = tf.Session()
-            self.sess.run(tf.global_variables_initializer())
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
 
     def _create_network(self):
         # look-up table
@@ -57,10 +58,10 @@ class CommNet(BaseModel):
         return distinct_num / self.num_leaver
 
     def _get_loss(self):
-        # loss1: (n,)
+        # advantage: n, 1, 1
         meta = tf.reshape(self.reward - self.base_line, shape=(-1, 1, 1))
-
-        temp1 = -self.one_hot * tf.log(self.policy)
+        # compute cross-entropy, add bias for computable
+        temp1 = -self.one_hot * tf.log(self.policy + self.bias)
         temp2 = temp1 * tf.tile(meta, [1, 5, 5])
         loss = tf.reduce_sum(temp2)
 
@@ -68,15 +69,17 @@ class CommNet(BaseModel):
 
     def get_reward(self, ids):
         # produce
-        return self.sess.run(self.reward, feed_dict={
+        reward, gun, policy = self.sess.run([self.reward, self.dense_weight, self.policy], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
             self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len))
         })
 
+        return reward
+
     def train(self, ids, base_line, itr):
 
-        _, loss, ou = self.sess.run([self.train_op, self.loss, self.actions], feed_dict={
+        _, loss, reward, policy, action = self.sess.run([self.train_op, self.loss, self.reward, self.policy, self.actions], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
             self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len)),
@@ -107,14 +110,14 @@ class BaseLine(BaseModel):
 
         # ==== create network =====
         with tf.variable_scope("Arctic"):
-            self.eval_name = tf.get_variable_scope().name
+            self.dense_weight = tf.get_variable("dense_weight", shape=(self.vector_len, 1),
+                                                initializer=tf.random_normal_initializer)
             self.baseline = self._create_network()  # n * 5 * n_actions
-
             # cross entropy: n * 5 * 1
             self.loss = self._get_loss()
             self.train_op = tf.train.RMSPropOptimizer(self.alpha).minimize(self.loss)
-            self.sess = tf.Session()
-            self.sess.run(tf.global_variables_initializer())
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
 
     def _create_network(self):
         # look-up table
@@ -128,9 +131,7 @@ class BaseLine(BaseModel):
         c1 = self._mean(h1)
         h2 = self._create_cell("step_second", c1, h1, h0)
 
-        dense_weight = tf.get_variable("dense_weight", shape=(self.vector_len, 1),
-                                       initializer=tf.random_normal_initializer)
-        dense = tf.einsum("ijk,kl->ijl", h2, dense_weight) / self.num_leaver
+        dense = tf.einsum("ijk,kl->ijl", h2, self.dense_weight) / self.num_leaver
 
         out = tf.reduce_mean(tf.sigmoid(dense), axis=1)
 

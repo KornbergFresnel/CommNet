@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from commnet import BaseLine, CommNet
+from leaver_game import BaseLine, CommNet
 
 
 N_AGENTS = 50
@@ -26,7 +26,7 @@ def train(episode):
         critic.train(ids, reward, i)
 
         if (i + 1) % 10 == 0:
-            print(actor.pred(id_1))
+            print("predict reward: ", actor.pred(id_1))
 
 
 if __name__ == "__main__":
