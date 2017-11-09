@@ -27,10 +27,10 @@ def train(episode):
         reward = actor.get_reward(ids)
         baseline = critic.get_reward(ids)
 
-        actor.train(ids, baseline, reward, itr=i, log=log)
-        critic.train(ids, reward, itr=i, log=log)
+        actor.train(ids, base_line=baseline, base_reward=reward, itr=i, log=log)
+        critic.train(ids, base_reward=reward, itr=i, log=log)
 
 
 if __name__ == "__main__":
-    train(80000)
+    train(50000)
 

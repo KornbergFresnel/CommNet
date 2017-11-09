@@ -10,7 +10,7 @@ class CommNet(BaseModel):
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
         self.base_line = tf.placeholder(tf.float32, shape=(None, 1))
-        self.base_reward = tf.placeholder(tf.float32, shape=(None, num_leaver, num_leaver))
+        self.base_reward = tf.placeholder(tf.float32, shape=(None, 1))
         self.bias = 1e-4
 
         # ==== create network =====
@@ -63,7 +63,8 @@ class CommNet(BaseModel):
         # compute cross-entropy, add bias for computable
         # temp1 = -1.0 * self.one_hot * tf.log(self.policy + self.bias)
         # temp2 =
-        labels = tf.reshape(tf.cast(self.one_hot, dtype=tf.float32) * tf.tile(meta, [1, 5, 5]), shape=(-1, self.n_actions))
+        labels = tf.reshape(tf.cast(self.one_hot, dtype=tf.float32) * tf.tile(meta, [1, 5, 5]),
+                            shape=(-1, self.n_actions))
         prob = tf.reshape((self.policy + self.bias), shape=(-1, self.n_actions))
         entropy = tf.nn.softmax_cross_entropy_with_logits(logits=prob, labels=labels)
         # log_value = tf.reshape(tf.log(self.policy + self.bias), shape=(-1, self.n_actions))
@@ -81,7 +82,7 @@ class CommNet(BaseModel):
 
         return reward
 
-    def train(self, ids, base_line, base_reward, **kwargs):
+    def train(self, ids, base_line=None, base_reward=None, **kwargs):
 
         _, loss, reward, policy = self.sess.run([self.train_op, self.loss, self.reward, self.policy], feed_dict={
             self.input: ids,
@@ -107,7 +108,7 @@ class BaseLine(BaseModel):
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
         self.n_actions = 1
-        self.eta = 1
+        self.eta = 0.003
         self.bias = 1e-4
 
         self.reward = tf.placeholder(tf.float32, shape=(None, 1))
@@ -153,13 +154,13 @@ class BaseLine(BaseModel):
             self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len))
         })
 
-    def train(self, ids, reward, **kwargs):
+    def train(self, ids, base_line=None, base_reward=None, **kwargs):
 
         _, loss, base = self.sess.run([self.train_op, self.loss, self.baseline], feed_dict={
             self.input: ids,
             self.mask: self.mask_data,
             self.c_meta: np.zeros((self.batch_size, self.num_leaver, self.vector_len)),
-            self.reward: reward
+            self.reward: base_reward
         })
 
         log = kwargs["log"]
