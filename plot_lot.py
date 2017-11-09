@@ -47,6 +47,7 @@ if sys.argv[2] == "plotloss":
     fig2.plot(np.arange(len(data[1])), data[1][:, 0])
     fig2.set_xlabel("Episodes per 10")
     fig2.set_ylabel("Loss value")
+
 elif sys.argv[2] == "plotvalue":
     fig1.plot(np.arange(len(data[0])), data[0][:, 1])
     fig1.set_ylabel("Rate value")

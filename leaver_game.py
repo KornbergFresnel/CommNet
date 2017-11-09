@@ -11,6 +11,7 @@ class CommNet(BaseModel):
 
         self.base_line = tf.placeholder(tf.float32, shape=(None, 1))
         self.bias = 1e-4
+        self.eta = 0.003
 
         # ==== create network =====
         with tf.variable_scope("CommNet"):
@@ -67,7 +68,7 @@ class CommNet(BaseModel):
         prob = tf.reshape((self.policy + self.bias), shape=(-1, self.n_actions))
         entropy = tf.nn.softmax_cross_entropy_with_logits(logits=prob, labels=labels)
         # log_value = tf.reshape(tf.log(self.policy + self.bias), shape=(-1, self.n_actions))
-        loss = tf.reduce_sum(entropy)
+        loss = tf.reduce_sum(entropy) + tf.reduce_sum(tf.square(meta)) * self.eta
 
         return loss
 
@@ -114,7 +115,7 @@ class BaseLine(BaseModel):
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
         self.n_actions = 1
-        self.eta = 0.003
+        self.eta = 1
         self.bias = 1e-4
 
         self.reward = tf.placeholder(tf.float32, shape=(None, 1))
@@ -142,14 +143,15 @@ class BaseLine(BaseModel):
         c1 = self._mean(h1)
         h2 = self._create_cell("step_second", c1, h1, h0)
 
-        dense = tf.einsum("ijk,kl->ijl", h2, self.dense_weight) / self.num_leaver
+        dense = tf.einsum("ijk,kl->ijl", h2, self.dense_weight)
 
-        out = tf.reduce_mean(tf.sigmoid(dense), axis=1)
+        self.t = tf.sigmoid(dense)
+        out = tf.reduce_mean(self.t, axis=1)
 
         return out
 
     def _get_loss(self):
-        loss = tf.reduce_sum(tf.square(self.baseline - self.reward)) * self.eta
+        loss = tf.reduce_sum(tf.square(self.reward - self.baseline)) * self.eta
         return loss
 
     def get_reward(self, ids):
