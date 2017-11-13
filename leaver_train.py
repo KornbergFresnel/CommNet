@@ -32,5 +32,5 @@ def train(episode):
 
 
 if __name__ == "__main__":
-    train(50000)
+    train(100000)
 

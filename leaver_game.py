@@ -4,7 +4,7 @@ from base import BaseModel
 
 
 class CommNet(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.002, batch_size=64,
+    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.001, batch_size=64,
                  episodes=500):
 
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
@@ -66,9 +66,10 @@ class CommNet(BaseModel):
         labels = tf.reshape(tf.cast(self.one_hot, dtype=tf.float32) * tf.tile(meta, [1, 5, 5]),
                             shape=(-1, self.n_actions))
         prob = tf.reshape((self.policy + self.bias), shape=(-1, self.n_actions))
-        entropy = tf.nn.softmax_cross_entropy_with_logits(logits=prob, labels=labels)
+        loss = tf.reduce_mean(-1.0 * labels * prob)
+        # entropy = tf.nn.softmax_cross_entropy_with_logits(logits=prob, labels=labels)
         # log_value = tf.reshape(tf.log(self.policy + self.bias), shape=(-1, self.n_actions))
-        loss = tf.reduce_sum(entropy)
+        # loss = tf.reduce_sum(entropy)
 
         return loss
 
@@ -98,18 +99,17 @@ class CommNet(BaseModel):
         sum_loss = np.sum(loss) / self.batch_size
         sum_base = np.sum(reward) / self.batch_size
 
-        if (itr + 1) % 10 == 0:
+        if (itr + 1) % 20 == 0:
             log.info("iteration:{0}\tloss:{1}\treward:{2}".format(itr, sum_loss, sum_base))
 
 
 class BaseLine(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.002, batch_size=64,
+    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.001, batch_size=64,
                  episodes=500):
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
         self.n_actions = 1
         self.eta = 0.003
-        self.bias = 1e-4
 
         self.reward = tf.placeholder(tf.float32, shape=(None, 1))
 
@@ -169,7 +169,7 @@ class BaseLine(BaseModel):
         sum_loss = np.sum(loss) / self.batch_size
         sum_base = np.sum(base) / self.batch_size
 
-        if (itr + 1) % 10 == 0:
+        if (itr + 1) % 20 == 0:
             log.info("iteration:{0}\tloss:{1}\tbase:{2}".format(itr, sum_loss, sum_base))
             # print("iteration:{0}\tloss:{1}\tbase:{2}".format(itr, sum_loss, sum_base))
 
