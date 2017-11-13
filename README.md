@@ -11,7 +11,7 @@ demonstrating the ability of the agents to learn to communicate amongst themselv
 
 *Structure*
 
-<img src="./assets/commnet_model.png", width="60%"/>
+<img src="./assets/commnet_model.png" width="60%" />
 
 *Tasks*
 
