@@ -4,7 +4,7 @@ from base import BaseModel
 
 
 class CommNet(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.001, batch_size=64,
+    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.0005, batch_size=64,
                  episodes=500):
 
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
@@ -60,16 +60,10 @@ class CommNet(BaseModel):
     def _get_loss(self):
         # advantage: n, 1, 1
         meta = tf.reshape(self.base_reward - self.base_line, shape=(-1, 1, 1))
-        # compute cross-entropy, add bias for computable
-        # temp1 = -1.0 * self.one_hot * tf.log(self.policy + self.bias)
-        # temp2 =
         labels = tf.reshape(tf.cast(self.one_hot, dtype=tf.float32) * tf.tile(meta, [1, 5, 5]),
                             shape=(-1, self.n_actions))
         prob = tf.reshape((self.policy + self.bias), shape=(-1, self.n_actions))
-        loss = tf.reduce_mean(-1.0 * labels * prob)
-        # entropy = tf.nn.softmax_cross_entropy_with_logits(logits=prob, labels=labels)
-        # log_value = tf.reshape(tf.log(self.policy + self.bias), shape=(-1, self.n_actions))
-        # loss = tf.reduce_sum(entropy)
+        loss = tf.reduce_mean(tf.reduce_sum(-1.0 * labels * tf.log(prob), axis=1))
 
         return loss
 
@@ -104,7 +98,7 @@ class CommNet(BaseModel):
 
 
 class BaseLine(BaseModel):
-    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.001, batch_size=64,
+    def __init__(self, num_leaver=5, num_agents=500, vector_len=128, num_units=10, learning_rate=0.0005, batch_size=64,
                  episodes=500):
         super().__init__(num_leaver, num_agents, vector_len, num_units, learning_rate, batch_size, episodes)
 
@@ -138,7 +132,10 @@ class BaseLine(BaseModel):
 
         dense = tf.einsum("ijk,kl->ijl", h2, self.dense_weight)
 
+        # out = tf.einsum("ijk,kl->ijl", dense)
+
         self.t = tf.sigmoid(dense)
+
         out = tf.reduce_mean(self.t, axis=1)
 
         return out
